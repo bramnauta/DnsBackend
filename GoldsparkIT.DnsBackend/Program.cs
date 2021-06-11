@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using GoldsparkIT.DnsBackend.Models;
@@ -28,7 +30,37 @@ namespace GoldsparkIT.DnsBackend
                     var hostingEnvironment = hostingContext.HostingEnvironment;
 
                     config.Sources.Clear();
-                    config.AddJsonFile("appsettings.json", true, false)
+
+                    // Try to find application folder
+                    string baseDir = null;
+
+                    try
+                    {
+                        baseDir = Path.GetDirectoryName(Process.GetCurrentProcess().MainModule.FileName);
+                    }
+                    catch
+                    {
+                        // Ignore
+                    }
+
+                    if (string.IsNullOrWhiteSpace(baseDir))
+                    {
+                        try
+                        {
+                            baseDir = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+                        }
+                        catch
+                        {
+                            // Ignore
+                        }
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(baseDir))
+                    {
+                        config.SetBasePath(baseDir);
+                    }
+
+                    config.AddJsonFile("appsettings.json", false, false)
                         .AddJsonFile("appsettings." + hostingEnvironment.EnvironmentName + ".json", true, false);
 
                     if (!hostingEnvironment.IsDevelopment() || string.IsNullOrEmpty(hostingEnvironment.ApplicationName))

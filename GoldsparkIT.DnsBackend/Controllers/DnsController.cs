@@ -27,6 +27,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
         {
             if (!EnsureLocalhost())
             {
+                _logger.LogWarning($"DNS request from {Request?.HttpContext.Connection.RemoteIpAddress} denied; only localhost can query");
                 return StatusCode(403);
             }
 
@@ -109,7 +110,8 @@ namespace GoldsparkIT.DnsBackend.Controllers
             var remoteAddr = Request?.HttpContext.Connection.RemoteIpAddress;
 
             return (remoteAddr?.ToString().StartsWith("127.") ?? false) ||
-                   (remoteAddr?.ToString().Equals("::1") ?? false);
+                   (remoteAddr?.ToString().Equals("::1") ?? false) ||
+                   (remoteAddr?.ToString().StartsWith("::ffff:127.") ?? false);
         }
     }
 }
