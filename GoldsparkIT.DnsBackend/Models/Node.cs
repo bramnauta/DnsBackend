@@ -20,5 +20,7 @@ namespace GoldsparkIT.DnsBackend.Models
 
         [Indexed]
         public Guid NodeId { get; set; }
+
+        public DateTimeOffset LastChanged { get; set; }
     }
 }

@@ -82,7 +82,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
         [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
         public ActionResult AddDomain([FromBody] BaseDnsDomain body)
         {
-            var newDomain = new DnsDomain(body) {Id = Guid.NewGuid(), Serial = $"{DateTimeOffset.Now:yyyyMMdd}00"};
+            var newDomain = new DnsDomain(body) {Id = Guid.NewGuid(), Serial = $"{DateTimeOffset.Now:yyyyMMdd}00", LastChanged = DateTimeOffset.Now.ToUniversalTime()};
 
             if (_db.Insert(newDomain) > 0)
             {
@@ -126,6 +126,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             domainObj.Retry = body.Retry;
             domainObj.Ttl = body.Ttl;
             domainObj.Serial = GetIncreasedSerial(domainObj);
+            domainObj.LastChanged = DateTimeOffset.Now.ToUniversalTime();
 
             _db.BeginTransaction();
 
@@ -332,7 +333,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return NotFound();
             }
 
-            var newRecord = new DnsRecord(body) {Id = Guid.NewGuid()};
+            var newRecord = new DnsRecord(body) {Id = Guid.NewGuid(), LastChanged = DateTimeOffset.Now.ToUniversalTime()};
 
             if (_db.Insert(newRecord) <= 0)
             {
@@ -384,6 +385,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             record.Content = body.Content;
             record.Ttl = body.Ttl;
             record.Priority = body.Priority;
+            record.LastChanged = DateTimeOffset.Now.ToUniversalTime()
 
             if (_db.Update(record) <= 0)
             {
@@ -561,6 +563,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             }
 
             nodeObj.Hostname = body.Hostname;
+            nodeObj.LastChanged = DateTimeOffset.Now.ToUniversalTime();
 
             try
             {
@@ -665,6 +668,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             var nodeObj = _db.Table<Node>().Single(n => n.NodeId == configurationObj.NodeId);
 
             nodeObj.Hostname = body.Hostname;
+            nodeObj.LastChanged = DateTimeOffset.Now.ToUniversalTime();
 
             affectedCount = _db.Update(nodeObj);
 
@@ -722,6 +726,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             }
 
             domain.Serial = GetIncreasedSerial(domain);
+            domain.LastChanged = DateTimeOffset.Now.ToUniversalTime();
 
             _db.Update(domain);
 

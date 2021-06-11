@@ -208,7 +208,8 @@ namespace GoldsparkIT.DnsBackend.Controllers
                     Id = Guid.NewGuid(),
                     Hostname = configuration.Hostname,
                     Port = configuration.Port,
-                    NodeId = configuration.NodeId
+                    NodeId = configuration.NodeId,
+                    LastChanged = DateTimeOffset.Now.ToUniversalTime()
                 };
 
                 db.Insert(localNode);

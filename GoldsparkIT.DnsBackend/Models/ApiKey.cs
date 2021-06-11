@@ -14,5 +14,7 @@ namespace GoldsparkIT.DnsBackend.Models
         public string Key { get; set; }
 
         public bool ClusterKey { get; set; }
+
+        public DateTimeOffset LastChanged { get; set; }
     }
 }
