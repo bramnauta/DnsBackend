@@ -70,6 +70,34 @@ namespace GoldsparkIT.DnsBackend
                 EnsureDatabaseInitialized();
             }
 
+            var dbFolder = GetDbFolder();
+
+            try
+            {
+                Directory.CreateDirectory(dbFolder);
+            }
+            catch
+            {
+                // Ignore
+            }
+
+            var dbFile = GetDbPath();
+
+            if (!skipInitialization)
+            {
+                _dbAccessToken.Release();
+            }
+
+            return _connection = new SQLiteConnection(dbFile, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex);
+        }
+
+        public static string GetDbPath()
+        {
+            return Path.Combine(GetDbFolder(), "dns.db");
+        }
+
+        private static string GetDbFolder()
+        {
             var baseFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
 
             if (string.IsNullOrWhiteSpace(baseFolder) || baseFolder == "/")
@@ -100,24 +128,7 @@ namespace GoldsparkIT.DnsBackend
             }
 
             var dbPath = Path.Combine(baseFolder, "GoldsparkIT.DnsBackend");
-
-            try
-            {
-                Directory.CreateDirectory(dbPath);
-            }
-            catch
-            {
-                // Ignore
-            }
-
-            var dbFile = Path.Combine(dbPath, "dns.db");
-
-            if (!skipInitialization)
-            {
-                _dbAccessToken.Release();
-            }
-
-            return _connection = new SQLiteConnection(dbFile, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex);
+            return dbPath;
         }
 
         public static void Stop()

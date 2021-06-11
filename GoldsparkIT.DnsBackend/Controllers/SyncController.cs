@@ -43,7 +43,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             DbProvider.Stop();
 
             var backupFile = Path.GetTempFileName();
-            System.IO.File.Copy(_db.DatabasePath, backupFile, true);
+            System.IO.File.Copy(DbProvider.GetDbPath(), backupFile, true);
 
             DbProvider.Start();
 
@@ -127,7 +127,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
         {
             _logger.LogInformation($"Adding to cluster; source server at {body.Hostname}:{body.Port}");
 
-            var path = _db.DatabasePath;
+            var path = DbProvider.GetDbPath();
 
             var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/download");
 
