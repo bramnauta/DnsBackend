@@ -99,14 +99,25 @@ namespace GoldsparkIT.DnsBackend
                 }
             }
 
-            var dbPath = Path.Combine(baseFolder, "dns.db");
+            var dbPath = Path.Combine(baseFolder, "GoldsparkIT.DnsBackend");
+
+            try
+            {
+                Directory.CreateDirectory(dbPath);
+            }
+            catch
+            {
+                // Ignore
+            }
+
+            var dbFile = Path.Combine(dbPath, "dns.db");
 
             if (!skipInitialization)
             {
                 _dbAccessToken.Release();
             }
 
-            return _connection = new SQLiteConnection(dbPath, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex);
+            return _connection = new SQLiteConnection(dbFile, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex);
         }
 
         public static void Stop()
