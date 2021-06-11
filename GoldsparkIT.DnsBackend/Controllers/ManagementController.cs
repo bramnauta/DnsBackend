@@ -385,7 +385,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             record.Content = body.Content;
             record.Ttl = body.Ttl;
             record.Priority = body.Priority;
-            record.LastChanged = DateTimeOffset.Now.ToUniversalTime()
+            record.LastChanged = DateTimeOffset.Now.ToUniversalTime();
 
             if (_db.Update(record) <= 0)
             {
