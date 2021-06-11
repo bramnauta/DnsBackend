@@ -70,7 +70,36 @@ namespace GoldsparkIT.DnsBackend
                 EnsureDatabaseInitialized();
             }
 
-            var dbPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "dns.db");
+            var baseFolder = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+
+            if (string.IsNullOrWhiteSpace(baseFolder) || baseFolder == "/")
+            {
+                baseFolder = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            }
+
+            if (string.IsNullOrWhiteSpace(baseFolder) || baseFolder == "/")
+            {
+                switch (Environment.OSVersion.Platform)
+                {
+                    case PlatformID.Win32NT:
+                    case PlatformID.Win32S:
+                    case PlatformID.Win32Windows:
+                    case PlatformID.WinCE:
+                    case PlatformID.Xbox:
+                        baseFolder = $"{Environment.GetFolderPath(Environment.SpecialFolder.Windows)[..1]}:\\ProgramData\\";
+                        break;
+                    case PlatformID.Unix:
+                        baseFolder = "/var/lib/";
+                        break;
+                    case PlatformID.MacOSX:
+                        baseFolder = "/Library/Application Support/";
+                        break;
+                    case PlatformID.Other:
+                        throw new Exception("Could not determine data path");
+                }
+            }
+
+            var dbPath = Path.Combine(baseFolder, "dns.db");
 
             if (!skipInitialization)
             {
