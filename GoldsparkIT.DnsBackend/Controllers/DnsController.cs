@@ -65,7 +65,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                     {
                         qname = domain.Domain,
                         qtype = "SOA",
-                        content = $"{masterHost}. {domain.RName} ({domain.Serial} {domain.Refresh} {domain.Retry} {domain.Expire} {domain.Ttl})",
+                        content = $"{masterHost}. {domain.RName}. ({domain.Serial} {domain.Refresh} {domain.Retry} {domain.Expire} {domain.Ttl})",
                         auth = 1,
                         ttl = domain.Ttl
                     }
