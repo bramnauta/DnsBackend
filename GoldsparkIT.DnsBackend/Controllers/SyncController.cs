@@ -15,6 +15,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 {
     [ApiController]
     [Route("sync")]
+    [ApiExplorerSettings(IgnoreApi = true)]
     public class SyncController : ControllerBase
     {
         private readonly IRestClient _client;
@@ -28,7 +29,6 @@ namespace GoldsparkIT.DnsBackend.Controllers
             _client = client;
         }
 
-        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpGet("getDb")]
         [ProducesResponseType(typeof(byte[]), (int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
@@ -45,7 +45,6 @@ namespace GoldsparkIT.DnsBackend.Controllers
             return Ok(response);
         }
 
-        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpGet("nodeId")]
         [ProducesResponseType(typeof(Guid), (int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
@@ -56,7 +55,6 @@ namespace GoldsparkIT.DnsBackend.Controllers
             return Ok(_db.Table<InternalConfiguration>().Single().NodeId);
         }
 
-        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPut("event")]
         [ProducesResponseType((int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
@@ -95,7 +93,6 @@ namespace GoldsparkIT.DnsBackend.Controllers
             };
         }
 
-        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("cluster")]
         [ProducesResponseType((int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
