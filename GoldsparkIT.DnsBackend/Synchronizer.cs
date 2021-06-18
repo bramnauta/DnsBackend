@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Threading.Tasks;
 using GoldsparkIT.DnsBackend.Models;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using RestSharp;
 using SQLite;
@@ -23,7 +24,7 @@ namespace GoldsparkIT.DnsBackend
             return _instance ??= new Synchronizer(new RestClient());
         }
 
-        public void Send(object obj, NotifyTableChangedAction action, SQLiteConnection db)
+        public void Send(object obj, NotifyTableChangedAction action, SQLiteConnection db, ILogger logger)
         {
             var dbWasOpen = db != null;
             if (!dbWasOpen)
@@ -53,11 +54,12 @@ namespace GoldsparkIT.DnsBackend
 
                     if (!response.IsSuccessful)
                     {
+                        logger.LogWarning($"Could not send update event to {node.Hostname}:{node.Port}:\r\n{(int) response.StatusCode} {response.StatusDescription}\r\nContent: {response.Content}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"WARNING: Could not send update event to {node.Hostname}:{node.Port}:\r\n{ex.Message}\r\n{ex.StackTrace}");
+                    logger.LogWarning($"Could not send update event to {node.Hostname}:{node.Port}:\r\n{ex.Message}\r\n{ex.StackTrace}");
                     // Ignore
                 }
             });

@@ -93,7 +93,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             if (_db.Insert(newDomain) > 0)
             {
-                Synchronizer.Get().Send(newDomain, NotifyTableChangedAction.Insert, _db);
+                Synchronizer.Get().Send(newDomain, NotifyTableChangedAction.Insert, _db, _logger);
                 return Created($"mgmt/domain/{newDomain.Id}", newDomain);
             }
 
@@ -167,7 +167,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
                 foreach (var item in syncObjects)
                 {
-                    synchronizer.Send(item, NotifyTableChangedAction.Update, _db);
+                    synchronizer.Send(item, NotifyTableChangedAction.Update, _db, _logger);
                 }
 
                 return Ok(domainObj);
@@ -241,7 +241,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
                 foreach (var item in syncObjects)
                 {
-                    synchronizer.Send(item, NotifyTableChangedAction.Delete, _db);
+                    synchronizer.Send(item, NotifyTableChangedAction.Delete, _db, _logger);
                 }
 
                 return Ok();
@@ -366,7 +366,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return StatusCode((int) HttpStatusCode.InternalServerError);
             }
 
-            Synchronizer.Get().Send(newRecord, NotifyTableChangedAction.Insert, _db);
+            Synchronizer.Get().Send(newRecord, NotifyTableChangedAction.Insert, _db, _logger);
 
             IncreaseSerial(newRecord.Domain);
 
@@ -423,7 +423,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return StatusCode((int) HttpStatusCode.InternalServerError);
             }
 
-            Synchronizer.Get().Send(record, NotifyTableChangedAction.Update, _db);
+            Synchronizer.Get().Send(record, NotifyTableChangedAction.Update, _db, _logger);
 
             IncreaseSerial(record.Domain);
 
@@ -457,7 +457,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return StatusCode((int) HttpStatusCode.InternalServerError);
             }
 
-            Synchronizer.Get().Send(record, NotifyTableChangedAction.Delete, _db);
+            Synchronizer.Get().Send(record, NotifyTableChangedAction.Delete, _db, _logger);
 
             IncreaseSerial(record.Domain);
 
@@ -525,7 +525,18 @@ namespace GoldsparkIT.DnsBackend.Controllers
         {
             var apiKey = _db.Table<ApiKey>().First(k => k.ClusterKey).Key;
 
-            var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/cluster");
+            var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/hostname");
+
+            var hostnameResponse = _client.Get(req);
+
+            if (!hostnameResponse.IsSuccessful)
+            {
+                return StatusCode((int) HttpStatusCode.InternalServerError, $"Response from node does not indicate success: {(int) hostnameResponse.StatusCode} {hostnameResponse.StatusDescription}\r\nContent: {hostnameResponse.Content}");
+            }
+
+            var hostname = hostnameResponse.Content;
+
+            req = new RestRequest($"http://{hostname}:{body.Port}/sync/cluster");
 
             var configuration = _db.Table<InternalConfiguration>().Single();
 
@@ -576,7 +587,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                     return StatusCode((int) HttpStatusCode.InternalServerError);
                 }
 
-                Synchronizer.Get().Send(nodeObj, NotifyTableChangedAction.Update, _db);
+                Synchronizer.Get().Send(nodeObj, NotifyTableChangedAction.Update, _db, _logger);
 
                 return Ok();
             }
@@ -618,7 +629,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                     return StatusCode((int) HttpStatusCode.InternalServerError);
                 }
 
-                Synchronizer.Get().Send(nodeObj, NotifyTableChangedAction.Delete, _db);
+                Synchronizer.Get().Send(nodeObj, NotifyTableChangedAction.Delete, _db, _logger);
 
                 return Ok();
             }
@@ -679,7 +690,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return StatusCode((int) HttpStatusCode.InternalServerError);
             }
 
-            Synchronizer.Get().Send(nodeObj, NotifyTableChangedAction.Update, _db);
+            Synchronizer.Get().Send(nodeObj, NotifyTableChangedAction.Update, _db, _logger);
 
             return Ok();
         }
@@ -732,7 +743,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             _db.Update(domain);
 
-            Synchronizer.Get().Send(domain, NotifyTableChangedAction.Update, _db);
+            Synchronizer.Get().Send(domain, NotifyTableChangedAction.Update, _db, _logger);
         }
 
         #endregion

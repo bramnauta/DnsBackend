@@ -55,6 +55,16 @@ namespace GoldsparkIT.DnsBackend.Controllers
             return Ok(_db.Table<InternalConfiguration>().Single().NodeId);
         }
 
+        [HttpGet("hostname")]
+        [ProducesResponseType(typeof(string), (int) HttpStatusCode.OK)]
+        [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
+        [ProducesResponseType((int) HttpStatusCode.Forbidden)]
+        [Authorize]
+        public ActionResult GetHostname()
+        {
+            return Ok(_db.Table<InternalConfiguration>().Single().Hostname);
+        }
+
         [HttpPut("event")]
         [ProducesResponseType((int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
@@ -149,7 +159,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
                 _db.Insert(localNode);
 
-                Synchronizer.Get().Send(localNode, NotifyTableChangedAction.Insert, _db);
+                Synchronizer.Get().Send(localNode, NotifyTableChangedAction.Insert, _db, _logger);
 
                 _logger.LogInformation("Cluster joined");
 
