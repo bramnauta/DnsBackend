@@ -1,10 +1,9 @@
 ﻿using System;
-using System.IO;
 using System.Linq;
 using System.Net;
-using System.Threading;
 using GoldsparkIT.DnsBackend.Models;
 using GoldsparkIT.DnsBackend.Requests;
+using GoldsparkIT.DnsBackend.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -29,46 +28,24 @@ namespace GoldsparkIT.DnsBackend.Controllers
             _client = client;
         }
 
-        [HttpGet("download")]
+        [ApiExplorerSettings(IgnoreApi = true)]
+        [HttpGet("getDb")]
         [ProducesResponseType(typeof(byte[]), (int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
         [ProducesResponseType((int) HttpStatusCode.Forbidden)]
         [Authorize(Roles = "UserKey")]
-        public ActionResult Download()
+        public ActionResult GetDb()
         {
             var remoteAddr = Request?.HttpContext.Connection.RemoteIpAddress;
 
-            _logger.LogInformation($"Received database download request from {remoteAddr}");
+            _logger.LogInformation($"Received database request from {remoteAddr}");
 
-            DbProvider.Stop();
+            var response = new SyncMessage {ApiKeys = _db.Table<ApiKey>(), DnsDomains = _db.Table<DnsDomain>(), DnsRecords = _db.Table<DnsRecord>(), Nodes = _db.Table<Node>()};
 
-            var backupFile = Path.GetTempFileName();
-            System.IO.File.Copy(DbProvider.GetDbPath(), backupFile, true);
-
-            DbProvider.Start();
-
-            using (var tempConn = new SQLiteConnection(backupFile, SQLiteOpenFlags.FullMutex | SQLiteOpenFlags.ReadWrite))
-            {
-                tempConn.DeleteAll<InternalConfiguration>();
-
-                tempConn.Close();
-            }
-
-            var stream = new MemoryStream();
-
-            using (var fileStream = new FileStream(backupFile, FileMode.Open, FileAccess.Read))
-            {
-                fileStream.CopyTo(stream);
-                stream.Flush();
-            }
-
-            System.IO.File.Delete(backupFile);
-
-            stream.Seek(0, SeekOrigin.Begin);
-
-            return File(stream, "application/octet-stream", "dns.db", false);
+            return Ok(response);
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpGet("nodeId")]
         [ProducesResponseType(typeof(Guid), (int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
@@ -79,6 +56,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             return Ok(_db.Table<InternalConfiguration>().Single().NodeId);
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPut("event")]
         [ProducesResponseType((int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
@@ -94,7 +72,6 @@ namespace GoldsparkIT.DnsBackend.Controllers
                     var configuration = _db.Table<InternalConfiguration>().Single();
 
                     return nodeObj.NodeId.Equals(configuration.NodeId) ? Ok() : ExecuteEvent(body, nodeObj);
-
                 case "DnsDomain":
                     return ExecuteEvent(body, JsonConvert.DeserializeObject<DnsDomain>(body.Data));
                 case "DnsRecord":
@@ -118,6 +95,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             };
         }
 
+        [ApiExplorerSettings(IgnoreApi = true)]
         [HttpPost("cluster")]
         [ProducesResponseType((int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
@@ -127,81 +105,41 @@ namespace GoldsparkIT.DnsBackend.Controllers
         {
             _logger.LogInformation($"Adding to cluster; source server at {body.Hostname}:{body.Port}");
 
-            var path = DbProvider.GetDbPath();
-
-            var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/download");
+            var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/getDb");
 
             req.AddHeader("X-Api-Key", body.ApiKey);
-
-            byte[] data;
 
             try
             {
                 _logger.LogInformation($"Downloading database from source server at {body.Hostname}:{body.Port}");
-                data = _client.DownloadData(req);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Could not add to cluster: {ex.Message}");
-                return StatusCode((int) HttpStatusCode.InternalServerError, ex.Message);
-            }
 
-            if (data.LongLength <= 0)
-            {
-                _logger.LogError("Could not add to cluster: No data was retrieved from source server");
-                return StatusCode((int) HttpStatusCode.InternalServerError, "No data was retrieved from source server");
-            }
+                var response = _client.Execute<SyncMessage>(req);
 
-            _logger.LogInformation("Blocking all SQLite connections in preparation of joining cluster");
-            DbProvider.Stop();
-
-            try
-            {
-                _db.Close();
-                _db.Dispose();
-            }
-            catch
-            {
-                // Ignore
-            }
-
-            for (var i = 0; i < 100; ++i)
-            {
-                try
+                if (!response.IsSuccessful)
                 {
-                    System.IO.File.Move(path, $"{path}.bck", true);
-                    break;
-                }
-                catch
-                {
-                    Thread.Sleep(100);
-                }
-            }
-
-            if (System.IO.File.Exists(path))
-            {
-                _logger.LogError("Could not add to cluster: Could not remove database");
-                return StatusCode((int) HttpStatusCode.InternalServerError);
-            }
-
-            try
-            {
-                System.IO.File.WriteAllBytes(path, data);
-
-                _logger.LogInformation("Releasing SQLite database block");
-                DbProvider.Start();
-
-                try
-                {
-                    System.IO.File.Delete($"{path}.bck");
-                }
-                catch
-                {
-                    // Ignore
+                    return StatusCode((int) HttpStatusCode.InternalServerError, $"Remote server returned an error: {(int) response.StatusCode} {response.StatusDescription}\r\nContent:{response.Content}");
                 }
 
-                var db = DbProvider.ProvideSQLiteConnection();
-                var configuration = db.Table<InternalConfiguration>().Single();
+                var data = response.Data;
+
+                if (data.MessageVersion > SyncMessage.GetLocalMessageVersion())
+                {
+                    return StatusCode((int) HttpStatusCode.InternalServerError, $"Remote server returned a newer message version; please update the local server and try again. ({data.MessageVersion} > {SyncMessage.GetLocalMessageVersion()})");
+                }
+
+                _db.Table<ApiKey>().Delete();
+                _db.InsertAll(data.ApiKeys);
+
+                _db.Table<DnsDomain>().Delete();
+                _db.InsertAll(data.DnsDomains);
+
+                _db.Table<DnsRecord>().Delete();
+                _db.InsertAll(data.DnsRecords);
+
+                _db.Table<Node>().Delete();
+                _db.InsertAll(data.Nodes);
+
+                var configuration = _db.Table<InternalConfiguration>().Single();
 
                 var localNode = new Node
                 {
@@ -212,7 +150,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                     LastChanged = DateTimeOffset.Now.ToUniversalTime()
                 };
 
-                db.Insert(localNode);
+                _db.Insert(localNode);
 
                 Synchronizer.Get().Send(localNode, NotifyTableChangedAction.Insert, _db);
 
@@ -223,8 +161,6 @@ namespace GoldsparkIT.DnsBackend.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"Could not add to cluster: {ex.Message}");
-
-                System.IO.File.Move($"{path}.bck", path, true);
 
                 return StatusCode((int) HttpStatusCode.InternalServerError, ex.Message);
             }

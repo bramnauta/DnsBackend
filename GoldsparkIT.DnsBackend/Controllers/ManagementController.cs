@@ -517,7 +517,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
         [Authorize(Roles = "UserKey")]
         [HttpPost("node")]
-        [ProducesResponseType(typeof(Node), (int) HttpStatusCode.Created)]
+        [ProducesResponseType((int) HttpStatusCode.Accepted)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
         [ProducesResponseType((int) HttpStatusCode.Forbidden)]
         [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
@@ -554,21 +554,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             var response = _client.Post(req);
 
-            if (response.IsSuccessful)
-            {
-                if (_db.Insert(newNode) <= 0)
-                {
-                    return StatusCode((int) HttpStatusCode.InternalServerError, "Could not add new node to database");
-                }
-
-                Synchronizer.Get().Send(newNode, NotifyTableChangedAction.Insert, _db);
-
-                return Created($"mgmt/node/{newNode.Id}", newNode);
-            }
-
-            _db.Delete(newNode);
-
-            return StatusCode((int) HttpStatusCode.InternalServerError, $"Response from node does not indicate success: {(int) response.StatusCode} {response.StatusDescription}\r\nContent: {response.Content}");
+            return response.IsSuccessful ? Accepted() : StatusCode((int) HttpStatusCode.InternalServerError, $"Response from node does not indicate success: {(int) response.StatusCode} {response.StatusDescription}\r\nContent: {response.Content}");
         }
 
         [Authorize(Roles = "UserKey")]
