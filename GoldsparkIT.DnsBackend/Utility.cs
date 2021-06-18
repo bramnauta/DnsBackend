@@ -9,5 +9,17 @@ namespace GoldsparkIT.DnsBackend
         {
             return new(new string(' ', length).Select(x => allowedCharacters[RandomNumberGenerator.GetInt32(0, allowedCharacters.Length)]).ToArray());
         }
+
+        public static bool HasPriority(string type)
+        {
+            return type.ToLower() switch
+            {
+                "cert" => true,
+                "mx" => true,
+                "naptr" => true,
+                "srv" => true,
+                _ => false
+            };
+        }
     }
 }

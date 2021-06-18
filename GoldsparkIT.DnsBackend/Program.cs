@@ -1,3 +1,4 @@
+using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -47,7 +48,7 @@ namespace GoldsparkIT.DnsBackend
                     {
                         try
                         {
-                            baseDir = Path.GetDirectoryName(typeof(Program).Assembly.Location);
+                            baseDir = AppContext.BaseDirectory;
                         }
                         catch
                         {

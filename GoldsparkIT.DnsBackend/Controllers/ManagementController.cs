@@ -82,6 +82,13 @@ namespace GoldsparkIT.DnsBackend.Controllers
         [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
         public ActionResult AddDomain([FromBody] BaseDnsDomain body)
         {
+            var domainObj = _db.Table<DnsDomain>().ToList().SingleOrDefault(r => r.Domain.Equals(body.Domain, StringComparison.OrdinalIgnoreCase));
+
+            if (domainObj != null)
+            {
+                return Conflict("Domain already exists");
+            }
+
             var newDomain = new DnsDomain(body) {Id = Guid.NewGuid(), Serial = $"{DateTimeOffset.Now:yyyyMMdd}00", LastChanged = DateTimeOffset.Now.ToUniversalTime()};
 
             if (_db.Insert(newDomain) > 0)
@@ -309,6 +316,11 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return BadRequest("SOA records are automatically maintained and cannot be read from this API");
             }
 
+            if (type.Equals("ns", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("NS records are automatically maintained and cannot be read from this API");
+            }
+
             var records = _db.Table<DnsRecord>().ToList().Where(r => r.Domain.Equals(domain, StringComparison.OrdinalIgnoreCase) && (type.Equals("any", StringComparison.OrdinalIgnoreCase) || type.Equals(r.Type, StringComparison.OrdinalIgnoreCase)));
 
             return records.Any() ? Ok(records) : NotFound();
@@ -328,12 +340,26 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return BadRequest("SOA records are automatically maintained and cannot be manually added");
             }
 
+            if (body.Type.Equals("ns", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("NS records are automatically maintained and cannot be manually added");
+            }
+
             if (!_db.Table<DnsDomain>().ToList().Any(d => d.Domain.Equals(body.Domain, StringComparison.OrdinalIgnoreCase)))
             {
                 return NotFound();
             }
 
             var newRecord = new DnsRecord(body) {Id = Guid.NewGuid(), LastChanged = DateTimeOffset.Now.ToUniversalTime()};
+
+            if (!Utility.HasPriority(newRecord.Type))
+            {
+                newRecord.Priority = null;
+            }
+            else
+            {
+                newRecord.Priority ??= 0;
+            }
 
             if (_db.Insert(newRecord) <= 0)
             {
@@ -367,6 +393,11 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 return BadRequest("SOA records are automatically maintained and cannot be manually updated");
             }
 
+            if (body.Type.Equals("ns", StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest("NS records are automatically maintained and cannot be manually updated");
+            }
+
             if (!_db.Table<DnsDomain>().ToList().Any(d => d.Domain.Equals(body.Domain, StringComparison.OrdinalIgnoreCase)))
             {
                 return NotFound();
@@ -384,7 +415,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             record.Type = body.Type;
             record.Content = body.Content;
             record.Ttl = body.Ttl;
-            record.Priority = body.Priority;
+            record.Priority = Utility.HasPriority(body.Type) ? body.Priority ?? 0 : null;
             record.LastChanged = DateTimeOffset.Now.ToUniversalTime();
 
             if (_db.Update(record) <= 0)
@@ -504,7 +535,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             if (!nodeIdResponse.IsSuccessful)
             {
-                return StatusCode((int) HttpStatusCode.InternalServerError);
+                return StatusCode((int) HttpStatusCode.InternalServerError, "Could not get node ID");
             }
 
             newNode.NodeId = Guid.Parse(nodeIdResponse.Data);
@@ -527,7 +558,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             {
                 if (_db.Insert(newNode) <= 0)
                 {
-                    return StatusCode((int) HttpStatusCode.InternalServerError);
+                    return StatusCode((int) HttpStatusCode.InternalServerError, "Could not add new node to database");
                 }
 
                 Synchronizer.Get().Send(newNode, NotifyTableChangedAction.Insert, _db);
@@ -537,7 +568,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             _db.Delete(newNode);
 
-            return StatusCode((int) HttpStatusCode.InternalServerError);
+            return StatusCode((int) HttpStatusCode.InternalServerError, $"Response from node does not indicate success: {(int) response.StatusCode} {response.StatusDescription}\r\nContent: {response.Content}");
         }
 
         [Authorize(Roles = "UserKey")]
