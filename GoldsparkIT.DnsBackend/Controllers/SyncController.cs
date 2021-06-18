@@ -122,7 +122,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
         [ProducesResponseType((int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
         [ProducesResponseType((int) HttpStatusCode.Forbidden)]
-        [Authorize(Roles = "ClusterKey")]
+        [Authorize(Roles = "UserKey")]
         public ActionResult AddToCluster([FromBody] AddToClusterRequest body)
         {
             _logger.LogInformation($"Adding to cluster; source server at {body.Hostname}:{body.Port}");
