@@ -523,24 +523,9 @@ namespace GoldsparkIT.DnsBackend.Controllers
         [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
         public ActionResult AddNode([FromBody] AddNodeRequest body)
         {
-            var newNode = new Node(body) {Id = Guid.NewGuid()};
-
             var apiKey = _db.Table<ApiKey>().First(k => k.ClusterKey).Key;
 
-            var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/nodeId");
-
-            req.AddHeader("X-Api-Key", body.ApiKey);
-
-            var nodeIdResponse = _client.Get<string>(req);
-
-            if (!nodeIdResponse.IsSuccessful)
-            {
-                return StatusCode((int) HttpStatusCode.InternalServerError, "Could not get node ID");
-            }
-
-            newNode.NodeId = Guid.Parse(nodeIdResponse.Data);
-
-            req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/cluster");
+            var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/cluster");
 
             var configuration = _db.Table<InternalConfiguration>().Single();
 

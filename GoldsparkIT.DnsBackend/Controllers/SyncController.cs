@@ -124,16 +124,16 @@ namespace GoldsparkIT.DnsBackend.Controllers
                     return StatusCode((int) HttpStatusCode.InternalServerError, $"Remote server returned a newer message version; please update the local server and try again. ({data.MessageVersion} > {SyncMessage.GetLocalMessageVersion()})");
                 }
 
-                _db.Table<ApiKey>().Delete();
+                _db.Table<ApiKey>().Delete(_ => true);
                 _db.InsertAll(data.ApiKeys);
 
-                _db.Table<DnsDomain>().Delete();
+                _db.Table<DnsDomain>().Delete(_ => true);
                 _db.InsertAll(data.DnsDomains);
 
-                _db.Table<DnsRecord>().Delete();
+                _db.Table<DnsRecord>().Delete(_ => true);
                 _db.InsertAll(data.DnsRecords);
 
-                _db.Table<Node>().Delete();
+                _db.Table<Node>().Delete(_ => true);
                 _db.InsertAll(data.Nodes);
 
                 var configuration = _db.Table<InternalConfiguration>().Single();
