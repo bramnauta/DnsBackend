@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using GoldsparkIT.DnsBackend.Models;
 using GoldsparkIT.DnsBackend.Requests;
+using GoldsparkIT.DnsBackend.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -527,11 +528,13 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             var req = new RestRequest($"http://{body.Hostname}:{body.Port}/sync/hostname");
 
+            req.AddHeader("X-Api-Key", body.ApiKey);
+
             var hostnameResponse = _client.Get(req);
 
             if (!hostnameResponse.IsSuccessful)
             {
-                return StatusCode((int) HttpStatusCode.InternalServerError, $"Response from node does not indicate success: {(int) hostnameResponse.StatusCode} {hostnameResponse.StatusDescription}\r\nContent: {hostnameResponse.Content}");
+                return StatusCode((int) HttpStatusCode.InternalServerError, $"Could not get hostname for node: {hostnameResponse.GetErrorMessage()}");
             }
 
             var hostname = hostnameResponse.Content;
@@ -550,7 +553,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             var response = _client.Post(req);
 
-            return response.IsSuccessful ? Accepted() : StatusCode((int) HttpStatusCode.InternalServerError, $"Response from node does not indicate success: {(int) response.StatusCode} {response.StatusDescription}\r\nContent: {response.Content}");
+            return response.IsSuccessful ? Accepted() : StatusCode((int) HttpStatusCode.InternalServerError, @$"Response from node ""{hostname}"" did not indicate success: {response.GetErrorMessage()}");
         }
 
         [Authorize(Roles = "UserKey")]
@@ -693,6 +696,70 @@ namespace GoldsparkIT.DnsBackend.Controllers
             Synchronizer.Get().Send(nodeObj, NotifyTableChangedAction.Update, _db, _logger);
 
             return Ok();
+        }
+
+        [HttpPost("resync")]
+        [ProducesResponseType((int) HttpStatusCode.OK)]
+        [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
+        [ProducesResponseType((int) HttpStatusCode.Forbidden)]
+        [Authorize(Roles = "UserKey")]
+        public ActionResult Resync()
+        {
+            var configuration = _db.Table<InternalConfiguration>().Single();
+            var srcServer = _db.Table<Node>().FirstOrDefault(n => !n.NodeId.Equals(configuration.NodeId));
+
+            if (srcServer == null)
+            {
+                return StatusCode((int) HttpStatusCode.InternalServerError, "No source server could be found");
+            }
+
+            _logger.LogInformation($"Resynchronizing with cluster; source server {srcServer.Hostname}:{srcServer.Port}");
+
+            var req = new RestRequest($"http://{srcServer.Hostname}:{srcServer.Port}/sync/getDb");
+
+            var apiKey = _db.Table<ApiKey>().First(k => k.ClusterKey).Key;
+            req.AddHeader("X-Api-Key", apiKey);
+
+            try
+            {
+                _logger.LogInformation($"Downloading database from source server at {srcServer.Hostname}:{srcServer.Port}");
+
+                var response = _client.Execute<SyncMessage>(req);
+
+                if (!response.IsSuccessful)
+                {
+                    return StatusCode((int) HttpStatusCode.InternalServerError, $"Remote server returned an error: {response.GetErrorMessage()}");
+                }
+
+                var data = response.Data;
+
+                if (data.MessageVersion > SyncMessage.GetLocalMessageVersion())
+                {
+                    return StatusCode((int) HttpStatusCode.InternalServerError, $"Remote server returned a newer message version; please update the local server and try again. ({data.MessageVersion} > {SyncMessage.GetLocalMessageVersion()})");
+                }
+
+                _db.Table<ApiKey>().Delete(_ => true);
+                _db.InsertAll(data.ApiKeys);
+
+                _db.Table<DnsDomain>().Delete(_ => true);
+                _db.InsertAll(data.DnsDomains);
+
+                _db.Table<DnsRecord>().Delete(_ => true);
+                _db.InsertAll(data.DnsRecords);
+
+                _db.Table<Node>().Delete(_ => true);
+                _db.InsertAll(data.Nodes);
+
+                _logger.LogInformation("Resynchronized");
+
+                return Ok();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Could not resynchronize: {ex.Message}");
+
+                return StatusCode((int) HttpStatusCode.InternalServerError, ex.Message);
+            }
         }
 
         #endregion

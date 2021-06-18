@@ -1,5 +1,6 @@
 ﻿using System.Linq;
 using System.Security.Cryptography;
+using RestSharp;
 
 namespace GoldsparkIT.DnsBackend
 {
@@ -20,6 +21,11 @@ namespace GoldsparkIT.DnsBackend
                 "srv" => true,
                 _ => false
             };
+        }
+
+        public static string GetErrorMessage(this IRestResponse response)
+        {
+            return response.StatusCode == 0 ? response.ErrorMessage : $"{(int) response.StatusCode} {response.StatusDescription}\r\nContent: {response.Content}";
         }
     }
 }

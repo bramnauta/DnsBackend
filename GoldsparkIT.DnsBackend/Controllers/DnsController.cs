@@ -145,7 +145,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
             {
                 qname = domain.Domain,
                 qtype = "SOA",
-                content = $"{masterHost}. {domain.RName}. ({domain.Serial} {domain.Refresh} {domain.Retry} {domain.Expire} {domain.Ttl})",
+                content = $"{masterHost}. {domain.RName}. {domain.Serial} {domain.Refresh} {domain.Retry} {domain.Expire} {domain.Ttl}",
                 auth = 1,
                 ttl = domain.Ttl
             };
@@ -164,7 +164,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
                 regex += Regex.Escape($"{record.Name}.");
             }
 
-            regex += $"{Regex.Escape($"{record.Domain}.")}$";
+            regex += $"{Regex.Escape($"{record.Domain}")}{Regex.Escape(".")}?$";
 
             return new Regex(regex);
         }

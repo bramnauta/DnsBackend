@@ -2,7 +2,6 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Threading;
 using GoldsparkIT.DnsBackend.Models;
 using SQLite;
 
@@ -10,9 +9,6 @@ namespace GoldsparkIT.DnsBackend
 {
     public static class DbProvider
     {
-        private static readonly SemaphoreSlim _dbAccessToken = new(1);
-        private static SQLiteConnection _connection;
-
         public static SQLiteConnection ProvideSQLiteConnection(IServiceProvider provider)
         {
             return ProvideSQLiteConnection();
@@ -20,51 +16,6 @@ namespace GoldsparkIT.DnsBackend
 
         public static SQLiteConnection ProvideSQLiteConnection(bool skipInitialization = false)
         {
-            if (!skipInitialization)
-            {
-                _dbAccessToken.Wait();
-            }
-
-            if (_connection != null)
-            {
-                try
-                {
-                    if (_connection.Handle != null && !_connection.Handle.IsInvalid && !_connection.Handle.IsClosed && _connection.ExecuteScalar<int>("SELECT 1") == 1)
-                    {
-                        if (!skipInitialization)
-                        {
-                            _dbAccessToken.Release();
-                        }
-
-                        return _connection;
-                    }
-                }
-                catch
-                {
-                    // Ignore
-                }
-
-                try
-                {
-                    _connection.Close();
-                }
-                catch
-                {
-                    // Ignore
-                }
-
-                try
-                {
-                    _connection.Dispose();
-                }
-                catch
-                {
-                    // Ignore
-                }
-
-                _connection = null;
-            }
-
             if (!skipInitialization)
             {
                 EnsureDatabaseInitialized();
@@ -83,12 +34,7 @@ namespace GoldsparkIT.DnsBackend
 
             var dbFile = GetDbPath();
 
-            if (!skipInitialization)
-            {
-                _dbAccessToken.Release();
-            }
-
-            return _connection = new SQLiteConnection(dbFile, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex);
+            return new SQLiteConnection(dbFile, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex);
         }
 
         public static string GetDbPath()
@@ -129,36 +75,6 @@ namespace GoldsparkIT.DnsBackend
 
             var dbPath = Path.Combine(baseFolder, "GoldsparkIT.DnsBackend");
             return dbPath;
-        }
-
-        public static void Stop()
-        {
-            _dbAccessToken.Wait();
-
-            try
-            {
-                _connection.Close();
-            }
-            catch
-            {
-                // Ignore
-            }
-
-            try
-            {
-                _connection.Dispose();
-            }
-            catch
-            {
-                // Ignore
-            }
-
-            _connection = null;
-        }
-
-        public static void Start()
-        {
-            _dbAccessToken.Release();
         }
 
         private static void EnsureDatabaseInitialized()

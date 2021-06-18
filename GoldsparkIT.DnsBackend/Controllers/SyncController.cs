@@ -52,7 +52,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
         [Authorize]
         public ActionResult GetNodeId()
         {
-            return Ok(_db.Table<InternalConfiguration>().Single().NodeId);
+            return Content(_db.Table<InternalConfiguration>().Single().NodeId.ToString(), "text/plain");
         }
 
         [HttpGet("hostname")]
@@ -62,7 +62,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
         [Authorize]
         public ActionResult GetHostname()
         {
-            return Ok(_db.Table<InternalConfiguration>().Single().Hostname);
+            return Content(_db.Table<InternalConfiguration>().Single().Hostname, "text/plain");
         }
 
         [HttpPut("event")]
@@ -124,7 +124,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
                 if (!response.IsSuccessful)
                 {
-                    return StatusCode((int) HttpStatusCode.InternalServerError, $"Remote server returned an error: {(int) response.StatusCode} {response.StatusDescription}\r\nContent:{response.Content}");
+                    return StatusCode((int) HttpStatusCode.InternalServerError, $"Remote server returned an error: {response.GetErrorMessage()}");
                 }
 
                 var data = response.Data;
