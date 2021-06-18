@@ -33,7 +33,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
         [ProducesResponseType(typeof(byte[]), (int) HttpStatusCode.OK)]
         [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
         [ProducesResponseType((int) HttpStatusCode.Forbidden)]
-        [Authorize(Roles = "UserKey")]
+        [Authorize(Roles = "ClusterKey")]
         public ActionResult GetDb()
         {
             var remoteAddr = Request?.HttpContext.Connection.RemoteIpAddress;
