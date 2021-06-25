@@ -13,5 +13,7 @@ namespace GoldsparkIT.DnsBackend.Models
         public Guid NodeId { get; set; }
 
         public int Port { get; set; }
+
+        public int ZeroMqPort { get; set; }
     }
 }

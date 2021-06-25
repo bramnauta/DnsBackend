@@ -14,13 +14,8 @@ namespace GoldsparkIT.DnsBackend
             return ProvideSQLiteConnection();
         }
 
-        public static SQLiteConnection ProvideSQLiteConnection(bool skipInitialization = false)
+        public static SQLiteConnection ProvideSQLiteConnection(bool readOnly = false)
         {
-            if (!skipInitialization)
-            {
-                EnsureDatabaseInitialized();
-            }
-
             var dbFolder = GetDbFolder();
 
             try
@@ -34,10 +29,10 @@ namespace GoldsparkIT.DnsBackend
 
             var dbFile = GetDbPath();
 
-            return new SQLiteConnection(dbFile, SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex);
+            return new SQLiteConnection(dbFile, (readOnly ? SQLiteOpenFlags.NoMutex | SQLiteOpenFlags.ReadOnly : SQLiteOpenFlags.Create | SQLiteOpenFlags.ReadWrite | SQLiteOpenFlags.FullMutex) | SQLiteOpenFlags.ProtectionComplete);
         }
 
-        public static string GetDbPath()
+        private static string GetDbPath()
         {
             return Path.Combine(GetDbFolder(), "dns.db");
         }
@@ -77,9 +72,9 @@ namespace GoldsparkIT.DnsBackend
             return dbPath;
         }
 
-        private static void EnsureDatabaseInitialized()
+        public static void InitializeDatabase()
         {
-            using var db = ProvideSQLiteConnection(true);
+            using var db = ProvideSQLiteConnection();
 
             db.CreateTable<DnsDomain>();
             db.CreateTable<DnsRecord>();
@@ -94,7 +89,8 @@ namespace GoldsparkIT.DnsBackend
                     Id = Guid.NewGuid(),
                     Hostname = Dns.GetHostName(),
                     NodeId = Guid.NewGuid(),
-                    Port = 5236
+                    Port = 5236,
+                    ZeroMqPort = 5237
                 });
             }
 

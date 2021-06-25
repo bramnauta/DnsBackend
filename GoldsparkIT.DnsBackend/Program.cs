@@ -12,13 +12,26 @@ namespace GoldsparkIT.DnsBackend
 {
     public class Program
     {
+        private static ZeroMqResponder _zeroMqResponder;
+
         public static void Main(string[] args)
         {
-            var db = DbProvider.ProvideSQLiteConnection();
+            DbProvider.InitializeDatabase();
 
-            var configuration = db.Table<InternalConfiguration>().Single();
+            int port;
 
-            var port = configuration.Port;
+            using (var db = DbProvider.ProvideSQLiteConnection())
+            {
+                var configuration = db.Table<InternalConfiguration>().Single();
+                port = configuration.Port;
+
+                if (configuration.ZeroMqPort > 0)
+                {
+                    Console.WriteLine($"Starting ZeroMQ server on port {configuration.ZeroMqPort}");
+                    _zeroMqResponder = new ZeroMqResponder();
+                    _zeroMqResponder.Start();
+                }
+            }
 
             CreateHostBuilder(args, port).Build().Run();
         }
@@ -79,7 +92,16 @@ namespace GoldsparkIT.DnsBackend
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
                     webBuilder.UseStartup<Startup>();
-                    webBuilder.UseKestrel(options => options.ListenAnyIP(port));
+                    webBuilder.UseKestrel(options =>
+                    {
+                        options.ListenAnyIP(port);
+                        options.Limits.KeepAliveTimeout = TimeSpan.FromDays(365.25 * 2000);
+                        options.Limits.MaxConcurrentConnections = long.MaxValue;
+                        options.Limits.MaxConcurrentUpgradedConnections = long.MaxValue;
+                        options.Limits.MaxResponseBufferSize = null;
+                        options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(10);
+                        options.AddServerHeader = false;
+                    });
                 });
         }
     }

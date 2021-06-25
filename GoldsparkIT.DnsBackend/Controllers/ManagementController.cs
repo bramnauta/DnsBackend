@@ -762,6 +762,66 @@ namespace GoldsparkIT.DnsBackend.Controllers
             }
         }
 
+        [Authorize(Roles = "UserKey")]
+        [HttpPut("httpPort")]
+        [ProducesResponseType((int) HttpStatusCode.OK)]
+        [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
+        [ProducesResponseType((int) HttpStatusCode.Forbidden)]
+        [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
+        public ActionResult SetHttpPort([FromBody] SetPortRequest body)
+        {
+            var configurationObj = _db.Table<InternalConfiguration>().Single();
+
+            configurationObj.Port = body.Port;
+
+            _db.Update(configurationObj);
+
+            return Ok();
+        }
+
+        [Authorize(Roles = "UserKey")]
+        [HttpGet("httpPort")]
+        [ProducesResponseType(typeof(int), (int) HttpStatusCode.OK)]
+        [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
+        [ProducesResponseType((int) HttpStatusCode.Forbidden)]
+        [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
+        public ActionResult GetHttpPort()
+        {
+            var configurationObj = _db.Table<InternalConfiguration>().Single();
+
+            return Content(configurationObj.Port.ToString(), "text/plain");
+        }
+
+        [Authorize(Roles = "UserKey")]
+        [HttpPut("zeroMqPort")]
+        [ProducesResponseType((int) HttpStatusCode.OK)]
+        [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
+        [ProducesResponseType((int) HttpStatusCode.Forbidden)]
+        [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
+        public ActionResult SetZeroMqPort([FromBody] SetPortRequest body)
+        {
+            var configurationObj = _db.Table<InternalConfiguration>().Single();
+
+            configurationObj.ZeroMqPort = body.Port;
+
+            _db.Update(configurationObj);
+
+            return Ok();
+        }
+
+        [Authorize(Roles = "UserKey")]
+        [HttpGet("zeroMqPort")]
+        [ProducesResponseType(typeof(int), (int) HttpStatusCode.OK)]
+        [ProducesResponseType((int) HttpStatusCode.Unauthorized)]
+        [ProducesResponseType((int) HttpStatusCode.Forbidden)]
+        [ProducesResponseType((int) HttpStatusCode.InternalServerError)]
+        public ActionResult GetZeroMqPort()
+        {
+            var configurationObj = _db.Table<InternalConfiguration>().Single();
+
+            return Content(configurationObj.ZeroMqPort.ToString(), "text/plain");
+        }
+
         #endregion
 
         #region Utility
