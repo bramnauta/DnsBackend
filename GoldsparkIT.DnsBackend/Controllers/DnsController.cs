@@ -60,7 +60,7 @@ namespace GoldsparkIT.DnsBackend.Controllers
 
             if (!qtype.Equals("any", StringComparison.OrdinalIgnoreCase))
             {
-                records = records.Where(x => qtype.ToLower() == x.Type.ToLower());
+                records = records.Where(x => qtype.ToLower() == x.Type.ToLower() || x.Type.ToLower() == "cname");
             }
 
             var reqName = qname.TrimEnd('.');
