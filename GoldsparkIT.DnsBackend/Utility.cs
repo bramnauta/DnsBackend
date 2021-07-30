@@ -140,7 +140,7 @@ namespace GoldsparkIT.DnsBackend
 
             regex += $"{Regex.Escape($"{record.Domain}")}{Regex.Escape(".")}?$";
 
-            return new Regex(regex);
+            return new Regex(regex, RegexOptions.IgnoreCase);
         }
 
         public static string CreateFqdn(DnsRecord record)
